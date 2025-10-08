@@ -6,33 +6,34 @@ import (
 	TDALista "tdas/lista"
 )
 
-const tamInicial int = 20
+const tamInicial int = 19
 
-type parClaveValor[K comparable, V any] struct {
+type parClaveValor[K any, V any] struct {
 	clave K
 	dato  V
 }
 
-type hashAbierto[K comparable, V any] struct {
+type hashAbierto[K any, V any] struct {
 	tabla    []TDALista.Lista[*parClaveValor[K, V]]
 	tam      int
 	cantidad int
+	esIgual func(K, K) bool
 }
 
-type iteradorHash[K comparable, V any] struct {
+type iteradorHash[K any, V any] struct {
 	hash      *hashAbierto[K, V]
 	posActual int
 	iterLista TDALista.IteradorLista[*parClaveValor[K, V]]
 }
 
-func CrearHash[K comparable, T any]() Diccionario[K, T] {
-	tabla := make([]TDALista.Lista[*parClaveValor[K, T]], tamInicial)
+func CrearHash[K any, V any](comparar func(K, K) bool) Diccionario[K, V] {
+	tabla := make([]TDALista.Lista[*parClaveValor[K, V]], tamInicial)
 	// acá no sé si creamos listas vacias para cada posicion o si dejamos nil.
 	// cambiarlo tiene implicaciones en los metodos y funciones auxiliares
 	// for i := range tamInicial {
 	// 	tabla[i] = TDALista.CrearListaEnlazada[parClaveValor[K,T]]()
 	// }
-	hash := hashAbierto[K, T]{tabla, tamInicial, 0}
+	hash := hashAbierto[K, V]{tabla, tamInicial, 0, comparar}
 	return &hash
 }
 
@@ -45,40 +46,26 @@ func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
 		h.tabla[posHash].InsertarUltimo(&parClaveValor[K, V]{clave, dato})
 		h.cantidad++
 	} else {
-		iterador := buscarEnLaLista(clave, h.tabla[posHash])
+		iteradorLista := buscarEnLaLista(clave, h.tabla[posHash], h.esIgual)
 
 		// si el elemento está, se actualiza el valor
-		if iterador.HaySiguiente() {
-			iterador.VerActual().dato = dato
+		if iteradorLista.HaySiguiente() {
+			iteradorLista.VerActual().dato = dato
 		} else { // si no está
-			iterador.Insertar(&parClaveValor[K, V]{clave, dato})
+			iteradorLista.Insertar(&parClaveValor[K, V]{clave, dato})
 			h.cantidad++
 		}
 	}
 }
 
-func buscarEnLaLista[K comparable, V any](
-	clave K,
-	lista TDALista.Lista[*parClaveValor[K, V]]) TDALista.IteradorLista[*parClaveValor[K, V]] {
 
-	iter := lista.Iterador()
-
-	for iter.HaySiguiente() {
-		if iter.VerActual().clave == clave {
-			return iter
-		}
-		iter.Siguiente()
-	}
-	return iter
-}
-
-func hash[K comparable](clave K) uint32 {
+func hash[K any](clave K) uint32 {
 	h := fnv.New32a()
 	h.Write(convertirABytes(clave))
 	return h.Sum32()
 }
 
-func convertirABytes[K comparable](clave K) []byte {
+func convertirABytes[K any](clave K) []byte {
 	return []byte(fmt.Sprintf("%v", clave))
 }
 
@@ -90,7 +77,7 @@ func (h *hashAbierto[K, V]) Pertenece(clave K) bool {
 		return false
 	}
 
-	iter := buscarEnLaLista(clave, lista)
+	iter := buscarEnLaLista(clave, lista, h.esIgual)
 	return iter.HaySiguiente() // solo hay siguiente si se encotro la clave
 }
 
@@ -98,7 +85,7 @@ func (h *hashAbierto[K, V]) Obtener(clave K) V {
 	pos := hash(clave) % uint32(h.tam)
 	lista := h.tabla[pos]
 
-	iter := buscarEnLaLista(clave, lista)
+	iter := buscarEnLaLista(clave, lista, h.esIgual)
 	if !iter.HaySiguiente() {
 		panic("La clave no pertenece al diccionario")
 	}
@@ -113,7 +100,7 @@ func (h *hashAbierto[K, V]) Borrar(clave K) V {
 		panic("La clave no pertenece al diccionario")
 	}
 
-	iter := buscarEnLaLista(clave, lista)
+	iter := buscarEnLaLista(clave, lista, h.esIgual)
 	if !iter.HaySiguiente() {
 		panic("La clave no pertenece al diccionario")
 	}
@@ -127,6 +114,22 @@ func (h *hashAbierto[K, V]) Borrar(clave K) V {
 
 func (h *hashAbierto[K, V]) Cantidad() int {
 	return h.cantidad
+}
+
+func buscarEnLaLista[K, V any](
+	clave K,
+	lista TDALista.Lista[*parClaveValor[K, V]],
+	esIgual func(K, K) bool) TDALista.IteradorLista[*parClaveValor[K, V]] {
+
+	iter := lista.Iterador()
+
+	for iter.HaySiguiente() {
+		if esIgual(iter.VerActual().clave, clave) {
+			return iter
+		}
+		iter.Siguiente()
+	}
+	return iter
 }
 
 func (h *hashAbierto[K, V]) Iterar(visitar func(clave K, dato V) bool) {
@@ -208,3 +211,4 @@ func (it *iteradorHash[K, V]) Siguiente() {
 		}
 	}
 }
+
