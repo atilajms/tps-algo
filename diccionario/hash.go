@@ -29,11 +29,8 @@ type iteradorHash[K any, V any] struct {
 }
 
 func CrearHash[K any, V any](comparar func(K, K) bool) Diccionario[K, V] {
-	tabla := make([]TDALista.Lista[parClaveValor[K, V]], tamInicial)
-	// listas vacias (??)
-	// for i := range tabla {
-	//     tabla[i] = TDALista.CrearListaEnlazada[parClaveValor[K, V]]()
-	// }
+
+	tabla := crearListas[K, V](tamInicial)
 
 	hash := hashAbierto[K, V]{tabla, tamInicial, 0, comparar}
 	return &hash
@@ -44,44 +41,33 @@ func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
 		redimensionar(h, h.tam*2)
 	}
 
-	iterLista, pos := obtenerIterador(h, clave)
+	iterLista := obtenerIterador(h, clave)
 
-	// listas vacias (??)
-	if iterLista == nil {
-		lista := TDALista.CrearListaEnlazada[parClaveValor[K, V]]()
-		lista.InsertarUltimo(parClaveValor[K, V]{clave, dato})
-		h.tabla[pos] = lista
-		h.cantidad++
+	if iterLista.HaySiguiente() {
+		iterLista.Borrar()
 	} else {
-		if iterLista.HaySiguiente() {
-			iterLista.Borrar()
-		} else {
-			h.cantidad++
-		}
-		iterLista.Insertar(parClaveValor[K, V]{clave, dato})
+		h.cantidad++
 	}
+	iterLista.Insertar(parClaveValor[K, V]{clave, dato})
 }
 
 func (h *hashAbierto[K, V]) Pertenece(clave K) bool {
 	// listas vacias (??) etc
-	iterLista, _ := obtenerIterador(h, clave)
-	if iterLista == nil {
-		return false
-	}
+	iterLista := obtenerIterador(h, clave)
 	return iterLista.HaySiguiente() // solo hay siguiente si se encotro la clave
 }
 
 func (h *hashAbierto[K, V]) Obtener(clave K) V {
-	iterLista, _ := obtenerIterador(h, clave)
-	if iterLista == nil || !iterLista.HaySiguiente() {
+	iterLista := obtenerIterador(h, clave)
+	if !iterLista.HaySiguiente() {
 		panic("La clave no pertenece al diccionario")
 	}
 	return iterLista.VerActual().dato
 }
 
 func (h *hashAbierto[K, V]) Borrar(clave K) V {
-	iterLista, _ := obtenerIterador(h, clave)
-	if iterLista == nil || !iterLista.HaySiguiente() {
+	iterLista := obtenerIterador(h, clave)
+	if !iterLista.HaySiguiente() {
 		panic("La clave no pertenece al diccionario")
 	}
 
@@ -183,16 +169,12 @@ func (it *iteradorHash[K, V]) Siguiente() {
 func obtenerIterador[K, V any](
 	h *hashAbierto[K, V],
 	clave K,
-) (TDALista.IteradorLista[parClaveValor[K, V]], uint32) {
+) TDALista.IteradorLista[parClaveValor[K, V]] {
 
 	posHash := obtenerHash(clave) % uint32(h.tam)
 	lista := h.tabla[posHash]
 
-	if lista == nil {
-		return nil, posHash
-	}
-
-	return buscarEnLaLista(clave, lista, h.esIgual), posHash
+	return buscarEnLaLista(clave, lista, h.esIgual)
 }
 
 func buscarEnLaLista[K, V any](
@@ -222,25 +204,23 @@ func convertirABytes[K any](clave K) []byte {
 }
 
 func redimensionar[K, V any](h *hashAbierto[K, V], nuevoTam int) {
-	nuevaTabla := make([]TDALista.Lista[parClaveValor[K, V]], nuevoTam)
-
+	nuevaTabla := crearListas[K, V](nuevoTam)
 	for _, lista := range h.tabla {
-		if lista != nil {
-			iter := lista.Iterador()
-			for iter.HaySiguiente() {
-				par := iter.VerActual()
-				posHash := obtenerHash(par.clave) % uint32(nuevoTam)
-
-				if nuevaTabla[posHash] == nil {
-					nuevaTabla[posHash] = TDALista.CrearListaEnlazada[parClaveValor[K, V]]()
-				}
-
-				nuevaTabla[posHash].InsertarUltimo(par)
-				iter.Siguiente()
-			}
-		}
+		lista.Iterar(func(par parClaveValor[K, V]) bool {
+			posHash := obtenerHash(par.clave) % uint32(nuevoTam)
+			nuevaTabla[posHash].InsertarUltimo(par)
+			return true
+		})
 	}
-
 	h.tabla = nuevaTabla
 	h.tam = nuevoTam
+}
+
+func crearListas[K, V any](tam int) []TDALista.Lista[parClaveValor[K, V]] {
+	tabla := make([]TDALista.Lista[parClaveValor[K, V]], tam)
+	for i := range tabla {
+		tabla[i] = TDALista.CrearListaEnlazada[parClaveValor[K, V]]()
+	}
+	return tabla
+
 }
