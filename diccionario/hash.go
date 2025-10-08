@@ -29,9 +29,7 @@ type iteradorHash[K any, V any] struct {
 }
 
 func CrearHash[K any, V any](comparar func(K, K) bool) Diccionario[K, V] {
-
 	tabla := crearListas[K, V](tamInicial)
-
 	hash := hashAbierto[K, V]{tabla, tamInicial, 0, comparar}
 	return &hash
 }
@@ -40,9 +38,7 @@ func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
 	if float64(h.cantidad)/float64(h.tam) > factorDeCargaMax {
 		redimensionar(h, h.tam*2)
 	}
-
 	iterLista := obtenerIterador(h, clave)
-
 	if iterLista.HaySiguiente() {
 		iterLista.Borrar()
 	} else {
@@ -52,9 +48,8 @@ func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
 }
 
 func (h *hashAbierto[K, V]) Pertenece(clave K) bool {
-	// listas vacias (??) etc
 	iterLista := obtenerIterador(h, clave)
-	return iterLista.HaySiguiente() // solo hay siguiente si se encotro la clave
+	return iterLista.HaySiguiente()
 }
 
 func (h *hashAbierto[K, V]) Obtener(clave K) V {
@@ -70,11 +65,9 @@ func (h *hashAbierto[K, V]) Borrar(clave K) V {
 	if !iterLista.HaySiguiente() {
 		panic("La clave no pertenece al diccionario")
 	}
-
 	dato := iterLista.VerActual().dato
 	iterLista.Borrar()
 	h.cantidad--
-
 	if h.tam > tamInicial && float64(h.cantidad)/float64(h.tam) < factorDeCargaMax/4 {
 		redimensionar(h, h.tam/2)
 	}
@@ -94,9 +87,8 @@ func (h *hashAbierto[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 		iter := lista.Iterador()
 		for iter.HaySiguiente() {
 			par := iter.VerActual()
-			//Ejecutamos la funcion
 			if !visitar(par.clave, par.dato) {
-				return // si devuelve false, se corta la iteración
+				return
 			}
 			iter.Siguiente()
 		}
@@ -109,7 +101,7 @@ func (h *hashAbierto[K, V]) Iterador() IterDiccionario[K, V] {
 	// Buscar la primera lista no vacía
 	for iter.posActual < len(h.tabla) {
 		lista := h.tabla[iter.posActual]
-		if lista != nil && !lista.EstaVacia() {
+		if !lista.EstaVacia() {
 			iter.iterLista = lista.Iterador()
 			break
 		}
@@ -130,7 +122,7 @@ func (it *iteradorHash[K, V]) HaySiguiente() bool {
 	// Buscar siguiente lista
 	for i := it.posActual + 1; i < it.hash.tam; i++ {
 		lista := it.hash.tabla[i]
-		if lista != nil && !lista.EstaVacia() {
+		if !lista.EstaVacia() {
 			return true
 		}
 	}
@@ -152,14 +144,14 @@ func (it *iteradorHash[K, V]) Siguiente() {
 
 	it.iterLista.Siguiente()
 
-	// Si la lista actual terminó, avanzar al próximo bucket válido
+	// Si la lista actual terminó, avanzar hasta otra con elementos o hasta el fin
 	for !it.iterLista.HaySiguiente() && it.posActual < it.hash.tam {
 		it.posActual++
 		if it.posActual >= it.hash.tam {
 			return // terminó el hash
 		}
 		lista := it.hash.tabla[it.posActual]
-		if lista != nil && !lista.EstaVacia() {
+		if !lista.EstaVacia() {
 			it.iterLista = lista.Iterador()
 			break
 		}
@@ -206,11 +198,13 @@ func convertirABytes[K any](clave K) []byte {
 func redimensionar[K, V any](h *hashAbierto[K, V], nuevoTam int) {
 	nuevaTabla := crearListas[K, V](nuevoTam)
 	for _, lista := range h.tabla {
-		lista.Iterar(func(par parClaveValor[K, V]) bool {
+		iter := lista.Iterador()
+		for iter.HaySiguiente() {
+			par := iter.VerActual()
 			posHash := obtenerHash(par.clave) % uint32(nuevoTam)
 			nuevaTabla[posHash].InsertarUltimo(par)
-			return true
-		})
+			iter.Siguiente()
+		}
 	}
 	h.tabla = nuevaTabla
 	h.tam = nuevoTam
@@ -222,5 +216,4 @@ func crearListas[K, V any](tam int) []TDALista.Lista[parClaveValor[K, V]] {
 		tabla[i] = TDALista.CrearListaEnlazada[parClaveValor[K, V]]()
 	}
 	return tabla
-
 }
