@@ -38,19 +38,22 @@ func CrearHash[K any, V any](comparar func(K, K) bool) Diccionario[K, V] {
 }
 
 func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
-	posHash := hash(clave) % uint32(h.tam)
+	posHash := obtenerHash(clave) % uint32(h.tam)
+	lista := h.tabla[posHash]
 
 	// Si creamos para cada posicion una lista, este if no es necesario
-	if h.tabla[posHash] == nil {
-		h.tabla[posHash] = TDALista.CrearListaEnlazada[*parClaveValor[K, V]]()
-		h.tabla[posHash].InsertarUltimo(&parClaveValor[K, V]{clave, dato})
+	if lista == nil {
+		lista = TDALista.CrearListaEnlazada[*parClaveValor[K, V]]()
+		lista.InsertarUltimo(&parClaveValor[K, V]{clave, dato})
+		h.tabla[posHash] = lista
 		h.cantidad++
 	} else {
-		iteradorLista := buscarEnLaLista(clave, h.tabla[posHash], h.esIgual)
+		iteradorLista := buscarEnLaLista(clave, lista, h.esIgual)
 
 		// si el elemento está, se actualiza el valor
 		if iteradorLista.HaySiguiente() {
-			iteradorLista.VerActual().dato = dato
+			actual := iteradorLista.VerActual()
+			actual.dato = dato
 		} else { // si no está
 			iteradorLista.Insertar(&parClaveValor[K, V]{clave, dato})
 			h.cantidad++
@@ -58,20 +61,9 @@ func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
 	}
 }
 
-
-func hash[K any](clave K) uint32 {
-	h := fnv.New32a()
-	h.Write(convertirABytes(clave))
-	return h.Sum32()
-}
-
-func convertirABytes[K any](clave K) []byte {
-	return []byte(fmt.Sprintf("%v", clave))
-}
-
 func (h *hashAbierto[K, V]) Pertenece(clave K) bool {
 	//Si en el hash inician todas las listas creadas esto no va
-	pos := hash(clave) % uint32(h.tam)
+	pos := obtenerHash(clave) % uint32(h.tam)
 	lista := h.tabla[pos]
 	if lista == nil {
 		return false
@@ -82,8 +74,12 @@ func (h *hashAbierto[K, V]) Pertenece(clave K) bool {
 }
 
 func (h *hashAbierto[K, V]) Obtener(clave K) V {
-	pos := hash(clave) % uint32(h.tam)
+	// esperando el corrector contestar...
+	pos := obtenerHash(clave) % uint32(h.tam)
 	lista := h.tabla[pos]
+	if lista == nil {
+		panic("La clave no pertenece al diccionario")
+	}
 
 	iter := buscarEnLaLista(clave, lista, h.esIgual)
 	if !iter.HaySiguiente() {
@@ -93,10 +89,10 @@ func (h *hashAbierto[K, V]) Obtener(clave K) V {
 }
 
 func (h *hashAbierto[K, V]) Borrar(clave K) V {
-	pos := hash(clave) % uint32(h.tam)
+	pos := obtenerHash(clave) % uint32(h.tam)
 	lista := h.tabla[pos]
 
-	if lista == nil {
+	if lista == nil { // lo que no sabemos si no va
 		panic("La clave no pertenece al diccionario")
 	}
 
@@ -212,3 +208,12 @@ func (it *iteradorHash[K, V]) Siguiente() {
 	}
 }
 
+func obtenerHash[K any](clave K) uint32 {
+	h := fnv.New32a()
+	h.Write(convertirABytes(clave))
+	return h.Sum32()
+}
+
+func convertirABytes[K any](clave K) []byte {
+	return []byte(fmt.Sprintf("%v", clave))
+}
