@@ -14,7 +14,7 @@ type parClaveValor[K any, V any] struct {
 }
 
 type hashAbierto[K any, V any] struct {
-	tabla    []TDALista.Lista[*parClaveValor[K, V]]
+	tabla    []TDALista.Lista[parClaveValor[K, V]]
 	tam      int
 	cantidad int
 	esIgual func(K, K) bool
@@ -23,11 +23,11 @@ type hashAbierto[K any, V any] struct {
 type iteradorHash[K any, V any] struct {
 	hash      *hashAbierto[K, V]
 	posActual int
-	iterLista TDALista.IteradorLista[*parClaveValor[K, V]]
+	iterLista TDALista.IteradorLista[parClaveValor[K, V]]
 }
 
 func CrearHash[K any, V any](comparar func(K, K) bool) Diccionario[K, V] {
-	tabla := make([]TDALista.Lista[*parClaveValor[K, V]], tamInicial)
+	tabla := make([]TDALista.Lista[parClaveValor[K, V]], tamInicial)
 	// acá no sé si creamos listas vacias para cada posicion o si dejamos nil.
 	// cambiarlo tiene implicaciones en los metodos y funciones auxiliares
 	// for i := range tamInicial {
@@ -43,8 +43,8 @@ func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
 
 	// Si creamos para cada posicion una lista, este if no es necesario
 	if lista == nil {
-		lista = TDALista.CrearListaEnlazada[*parClaveValor[K, V]]()
-		lista.InsertarUltimo(&parClaveValor[K, V]{clave, dato})
+		lista = TDALista.CrearListaEnlazada[parClaveValor[K, V]]()
+		lista.InsertarUltimo(parClaveValor[K, V]{clave, dato})
 		h.tabla[posHash] = lista
 		h.cantidad++
 	} else {
@@ -52,12 +52,11 @@ func (h *hashAbierto[K, V]) Guardar(clave K, dato V) {
 
 		// si el elemento está, se actualiza el valor
 		if iteradorLista.HaySiguiente() {
-			actual := iteradorLista.VerActual()
-			actual.dato = dato
+			iteradorLista.Borrar()
 		} else { // si no está
-			iteradorLista.Insertar(&parClaveValor[K, V]{clave, dato})
 			h.cantidad++
 		}
+	iteradorLista.Insertar(parClaveValor[K, V]{clave, dato})
 	}
 }
 
@@ -114,8 +113,8 @@ func (h *hashAbierto[K, V]) Cantidad() int {
 
 func buscarEnLaLista[K, V any](
 	clave K,
-	lista TDALista.Lista[*parClaveValor[K, V]],
-	esIgual func(K, K) bool) TDALista.IteradorLista[*parClaveValor[K, V]] {
+	lista TDALista.Lista[parClaveValor[K, V]],
+	esIgual func(K, K) bool) TDALista.IteradorLista[parClaveValor[K, V]] {
 
 	iter := lista.Iterador()
 
