@@ -18,9 +18,10 @@ type nodoAbb[K any, V any] struct {
 }
 
 type iteradorArbol[K any, V any] struct {
-	nodo      **nodoAbb[K, V]
-	posActual int
-	pila TDAPila.Pila[parClaveValor[K, V]]
+	pila  TDAPila.Pila[nodoAbb[K, V]]
+	cmp   funcCmp[K]
+	desde *K
+	hasta *K
 }
 
 func crearNodoAbb[K any, V any](clave K, dato V) *nodoAbb[K, V] {
@@ -29,6 +30,17 @@ func crearNodoAbb[K any, V any](clave K, dato V) *nodoAbb[K, V] {
 		dato:      dato,
 		izquierdo: nil,
 		derecho:   nil,
+	}
+}
+
+func crearIteradorAbb[K, V any](a *abb[K, V], desde *K, hasta *K, cmp funcCmp[K]) *iteradorArbol[K, V] {
+	pila := TDAPila.CrearPilaDinamica[nodoAbb[K, V]]()
+	apilarHastaElMinimo(a.raiz, pila, desde, hasta, cmp)
+	return &iteradorArbol[K, V]{
+		pila:  pila,
+		cmp:   cmp,
+		desde: desde,
+		hasta: hasta,
 	}
 }
 
@@ -121,8 +133,7 @@ func (a *abb[K, V]) Borrar(clave K) V {
 }
 
 func (a *abb[K, V]) IterarRango(desde *K, hasta *K, visitar func(clave K, dato V) bool) {
-	a.raiz.iterar(visitar, a.cmp, desde, hasta)
-
+	a.raiz.iterar(visitar, a.cmp, desde, hasta) // llamo a la funcion interna con el nodo en vez del arbol
 }
 
 func (a *abb[K, V]) Iterar(visitar func(clave K, dato V) bool) {
@@ -130,59 +141,62 @@ func (a *abb[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 }
 
 func (a *abb[K, V]) Iterador() IterDiccionario[K, V] {
-	return a.IteradorRango(nil, nil)
+	return crearIteradorAbb(a, nil, nil, a.cmp)
 }
 
 func (a *abb[K, V]) IteradorRango(desde *K, hasta *K) IterDiccionario[K, V] {
-	return nil
+	return crearIteradorAbb(a, desde, hasta, a.cmp)
 }
 
+func (it *iteradorArbol[K, V]) HaySiguiente() bool {
+	return !it.pila.EstaVacia()
+}
 
+func (it *iteradorArbol[K, V]) VerActual() (K, V) {
+	if !it.HaySiguiente() {
+		panic("El iterador termino de iterar")
+	}
+	nodo := it.pila.VerTope()
+	return nodo.clave, nodo.dato
+}
 
-// func (a *abb[K, V]) IterarRango(f func(clave K, dato V) bool) {
-	// 	if a.raiz == nil {
-	// 		return
-	// 	}
-	
-	// 	pila := TDAPila.CrearPilaDinamica[*nodoAbb[K, V]]()
-	// 	actual := a.raiz
-	
-	// 	for actual != nil || !pila.EstaVacia() {
-	// 		// Bajo a la izquierda
-	// 		for actual != nil {
-	// 			pila.Apilar(actual)
-	// 			actual = actual.izquierdo
-	// 		}
-	
-	// 		// sao el nodo de la pila
-	// 		n := pila.Desapilar()
-	// 		actual = n
-	
-	// 		// aplico la func
-	// 		if !f(actual.clave, actual.dato) {
-	// 			return // si devuelve false
-	// 		}
-	
-	// 		actual = actual.derecho
-	// 	}
-	// }
+func (it *iteradorArbol[K, V]) Siguiente() {
+	if !it.HaySiguiente() {
+		panic("El iterador termino de iterar")
+	}
+	nodo := it.pila.Desapilar()
+	apilarHastaElMinimo(nodo.derecho, it.pila, it.desde, it.hasta, it.cmp)
+}
 
-	func (nodo *nodoAbb[K, V]) iterar(visitar func(K, V) bool, cmp funcCmp[K], desde *K, hasta *K) {
-		if nodo == nil {
+func (nodo *nodoAbb[K, V]) iterar(visitar func(K, V) bool, cmp funcCmp[K], desde *K, hasta *K) {
+	if nodo == nil {
+		return
+	}
+
+	if desde == nil || cmp(nodo.clave, *desde) < 0 {
+		nodo.izquierdo.iterar(visitar, cmp, desde, hasta)
+	}
+
+	if (desde == nil || cmp(nodo.clave, *desde) >= 0) && (hasta == nil || cmp(nodo.clave, *hasta) <= 0) {
+		if !visitar(nodo.clave, nodo.dato) {
 			return
 		}
-	
-		if desde == nil || cmp(nodo.clave, *desde) < 0 {
-			nodo.izquierdo.iterar(visitar, cmp, desde, hasta)
-		}
-	
-		if (desde == nil || cmp(nodo.clave, *desde) >= 0) && (hasta == nil || cmp(nodo.clave, *hasta) <= 0) {
-			if !visitar(nodo.clave, nodo.dato) {
-				return
-			}
-		}
-		if hasta == nil || cmp(nodo.clave, *hasta) < 0 {
-			nodo.derecho.iterar(visitar, cmp, desde, hasta)
-		}
-	
 	}
+	if hasta == nil || cmp(nodo.clave, *hasta) < 0 {
+		nodo.derecho.iterar(visitar, cmp, desde, hasta)
+	}
+
+}
+
+func apilarHastaElMinimo[K, V any](nodo *nodoAbb[K, V], pila TDAPila.Pila[nodoAbb[K, V]], desde, hasta *K, cmp funcCmp[K]) {
+	for nodo != nil {
+		if desde != nil && cmp(nodo.clave, *desde) < 0 { // empezar por un elemento mayor a desde
+			nodo = nodo.derecho
+		} else if hasta != nil && cmp(nodo.clave, *hasta) > 0 {
+			nodo = nodo.izquierdo
+		} else {
+			pila.Apilar(*nodo)
+			nodo = nodo.izquierdo
+		}
+	}
+}
