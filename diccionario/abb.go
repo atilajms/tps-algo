@@ -173,7 +173,7 @@ func (nodo *nodoAbb[K, V]) iterar(visitar func(K, V) bool, cmp funcCmp[K], desde
 		return
 	}
 
-	if desde == nil || cmp(nodo.clave, *desde) < 0 {
+	if desde == nil || cmp(nodo.clave, *desde) >= 0 {
 		nodo.izquierdo.iterar(visitar, cmp, desde, hasta)
 	}
 
@@ -182,7 +182,7 @@ func (nodo *nodoAbb[K, V]) iterar(visitar func(K, V) bool, cmp funcCmp[K], desde
 			return
 		}
 	}
-	if hasta == nil || cmp(nodo.clave, *hasta) < 0 {
+	if hasta == nil || cmp(nodo.clave, *hasta) <= 0 {
 		nodo.derecho.iterar(visitar, cmp, desde, hasta)
 	}
 
