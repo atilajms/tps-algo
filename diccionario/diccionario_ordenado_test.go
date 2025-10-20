@@ -10,9 +10,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var TAMS_VOLUMEN_ABB = []int{12500, 25000}
+var TAMS_VOLUMEN_ABB = []int{12500, 25000, 50000, 100000}
 
 func compararEnteros(a, b int) int { return a - b }
+
+func crearABBAlfabeto() TDADiccionario.DiccionarioOrdenado[string, int] {
+	abb := TDADiccionario.CrearABB[string, int](strings.Compare)
+	letras := []string{
+		"m", "g", "t", "d", "j", "p", "w", "b", "e", "h", "k",
+		"o", "r", "u", "z", "a", "c", "f", "i", "l", "n", "q",
+		"s", "v", "x", "y", "ñ",
+	}
+
+	for i, letra := range letras {
+		abb.Guardar(letra, i+1)
+	}
+	return abb
+}
 
 func generarClavesAleatorias(n int) []string {
 	claves := make([]string, n)
@@ -217,15 +231,35 @@ func TestABBIterarInternoOrdenCorrecto(t *testing.T) {
 	require.Equal(t, []int{3, 5, 7, 10, 12, 15, 20}, claves)
 }
 
-func TestABBIterarInternoCortaCorrectamente(t *testing.T) {
+func TestABBIterarCorte(t *testing.T) {
 	t.Log("La función de iteración interna debe poder cortar la iteración correctamente.")
-	abb := crearABBEnteros()
-	var claves []int
-	abb.Iterar(func(clave, _ int) bool {
+
+	abb := crearABBAlfabeto()
+
+	var claves []string
+	abb.Iterar(func(clave string, _ int) bool {
 		claves = append(claves, clave)
-		return clave < 10
+		return clave != "m"
 	})
-	require.Equal(t, []int{3, 5, 7, 10}, claves)
+
+	esperado := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
+	require.Equal(t, esperado, claves)
+}
+
+func TestABBIterarCorteYRango(t *testing.T) {
+	t.Log("La función de iteración interna debe poder cortar la iteración y respetar un rango.")
+
+	abb := crearABBAlfabeto()
+
+	var claves []string
+	desde := "f"
+	hasta := "s"
+	abb.IterarRango(&desde, &hasta, func(clave string, _ int) bool {
+		claves = append(claves, clave)
+		return clave != "m"
+	})
+	esperado := []string{"f", "g", "h", "i", "j", "k", "l", "m"}
+	require.Equal(t, esperado, claves)
 }
 
 func TestABBIterarInternoVacio(t *testing.T) {

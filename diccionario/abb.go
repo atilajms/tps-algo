@@ -168,24 +168,31 @@ func (it *iteradorArbol[K, V]) Siguiente() {
 	apilarHastaElMinimo(nodo.derecho, it.pila, it.desde, it.hasta, it.cmp)
 }
 
-func (nodo *nodoAbb[K, V]) iterar(visitar func(K, V) bool, cmp funcCmp[K], desde *K, hasta *K) {
+func (nodo *nodoAbb[K, V]) iterar(visitar func(K, V) bool, cmp funcCmp[K], desde *K, hasta *K) bool {
 	if nodo == nil {
-		return
+		return true
 	}
 
-	if desde == nil || cmp(nodo.clave, *desde) >= 0 {
-		nodo.izquierdo.iterar(visitar, cmp, desde, hasta)
+	if desde == nil || cmp(nodo.clave, *desde) > 0 {
+		// si visitar es false en algun momento, iterar devuelve false para no visitar los nodos siguientes
+		if !nodo.izquierdo.iterar(visitar, cmp, desde, hasta) {
+			return false
+		}
 	}
 
 	if (desde == nil || cmp(nodo.clave, *desde) >= 0) && (hasta == nil || cmp(nodo.clave, *hasta) <= 0) {
 		if !visitar(nodo.clave, nodo.dato) {
-			return
+			return false
 		}
 	}
-	if hasta == nil || cmp(nodo.clave, *hasta) <= 0 {
-		nodo.derecho.iterar(visitar, cmp, desde, hasta)
+
+	if hasta == nil || cmp(nodo.clave, *hasta) < 0 {
+		if !nodo.derecho.iterar(visitar, cmp, desde, hasta) {
+			return false
+		}
 	}
 
+	return true
 }
 
 func apilarHastaElMinimo[K, V any](nodo *nodoAbb[K, V], pila TDAPila.Pila[nodoAbb[K, V]], desde, hasta *K, cmp funcCmp[K]) {
