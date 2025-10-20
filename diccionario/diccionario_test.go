@@ -2,7 +2,6 @@ package diccionario_test
 
 import (
 	"fmt"
-	"strings"
 	"github.com/stretchr/testify/require"
 
 	TDADiccionario "tdas/diccionario"
@@ -17,17 +16,6 @@ func igualdadStrings(a, b string) bool {
 
 func igualdadInts(a, b int) bool {
 	return a == b
-}
-
-// hay que pasar esa funcion en vez de igualdadInts, y strings.Compare para str
-// tb cambiar CrearHash por CrearABB
-func compararInts(a, b int) int { 
-	if a < b {
-		return -1
-	} else if a > b {
-		return 1
-	}
-	return 0
 }
 
 func TestDiccionarioVacio(t *testing.T) {

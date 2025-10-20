@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Funcion aux para no repetir codigo
 func crearABBEnteros() diccionario.DiccionarioOrdenado[int, int] {
 	abb := diccionario.CrearABB[int, int](func(a, b int) int { return a - b })
 	abb.Guardar(10, 100)
@@ -62,17 +61,6 @@ func TestIterarRangoConLimites(t *testing.T) {
 		return true
 	})
 	require.Equal(t, 440, suma)
-
-}
-
-func TestIterarCalcularSuma(t *testing.T) {
-	abb := crearABBEnteros()
-	suma := 0
-	abb.Iterar(func(_, dato int) bool {
-		suma += dato
-		return true
-	})
-	require.Equal(t, 720, suma)
 }
 
 func TestIterarAbbVacio(t *testing.T) {
@@ -91,32 +79,102 @@ func TestIterarAbbVacio(t *testing.T) {
 	require.Equal(t, 0, suma)
 }
 
-func TestIterarAbbUnElemento(t *testing.T) {
+
+func TestIterarOrdenInOrder(t *testing.T) {
+	abb := crearABBEnteros()
+	claves := []int{}
+	abb.Iterar(func(clave, _ int) bool {
+		claves = append(claves, clave)
+		return true
+	})
+	require.Equal(t, []int{3, 5, 7, 10, 12, 15, 20}, claves)
+}
+
+func TestIteradorExternoCompleto(t *testing.T) {
+	abb := crearABBEnteros()
+	iter := abb.IteradorRango(nil, nil)
+
+	var claves []int
+	var datos []int
+	for iter.HaySiguiente() {
+		clave, dato := iter.VerActual()
+		claves = append(claves, clave)
+		datos = append(datos, dato)
+		iter.Siguiente()
+	}
+
+	require.Equal(t, []int{3, 5, 7, 10, 12, 15, 20}, claves)
+	require.Equal(t, []int{30, 50, 70, 100, 120, 150, 200}, datos)
+}
+
+func TestIteradorExternoRangoLimitado(t *testing.T) {
+	abb := crearABBEnteros()
+	desde := 5
+	hasta := 12
+	iter := abb.IteradorRango(&desde, &hasta)
+
+	var claves []int
+	for iter.HaySiguiente() {
+		clave, _ := iter.VerActual()
+		claves = append(claves, clave)
+		iter.Siguiente()
+	}
+
+	require.Equal(t, []int{5, 7, 10, 12}, claves)
+}
+
+func TestIteradorExternoVacio(t *testing.T) {
+	abb := diccionario.CrearABB[int, int](func(a, b int) int { return a - b })
+	iter := abb.IteradorRango(nil, nil)
+	require.False(t, iter.HaySiguiente())
+
+	require.PanicsWithValue(t, "El iterador termino de iterar", func() {
+		iter.VerActual()
+	})
+	require.PanicsWithValue(t, "El iterador termino de iterar", func() {
+		iter.Siguiente()
+	})
+}
+
+func TestIteradorExternoUnElemento(t *testing.T) {
 	abb := diccionario.CrearABB[int, int](func(a, b int) int { return a - b })
 	abb.Guardar(42, 99)
 
-	suma := 0
-	abb.Iterar(func(_, dato int) bool {
-		suma += dato
-		return true
-	})
-	require.Equal(t, 99, suma)
+	iter := abb.IteradorRango(nil, nil)
+	require.True(t, iter.HaySiguiente())
+	clave, dato := iter.VerActual()
+	require.Equal(t, 42, clave)
+	require.Equal(t, 99, dato)
 
-	desde := 40
-	hasta := 45
-	suma = 0
-	abb.IterarRango(&desde, &hasta, func(_, dato int) bool {
-		suma += dato
-		return true
-	})
-	require.Equal(t, 99, suma)
-
-	desde = 1
-	hasta = 10
-	suma = 0
-	abb.IterarRango(&desde, &hasta, func(_, dato int) bool {
-		suma += dato
-		return true
-	})
-	require.Equal(t, 0, suma)
+	iter.Siguiente()
+	require.False(t, iter.HaySiguiente())
+	require.PanicsWithValue(t, "El iterador termino de iterar", func() { iter.VerActual() })
 }
+
+func TestIteradorRangoSinResultados(t *testing.T) {
+	abb := crearABBEnteros()
+	desde := 0
+	hasta := 2
+	iter := abb.IteradorRango(&desde, &hasta)
+	require.False(t, iter.HaySiguiente(), "não deveria haver elementos no rango [0,2]")
+	require.PanicsWithValue(t, "El iterador termino de iterar", func() { iter.VerActual() })
+	require.PanicsWithValue(t, "El iterador termino de iterar", func() { iter.Siguiente() })
+}
+
+func TestIteradorRangoInclusivo(t *testing.T) {
+	abb := crearABBEnteros()
+	desde := 5
+	hasta := 10
+	iter := abb.IteradorRango(&desde, &hasta)
+
+	var claves []int
+	for iter.HaySiguiente() {
+		clave, _ := iter.VerActual()
+		claves = append(claves, clave)
+		iter.Siguiente()
+	}
+
+	require.Equal(t, []int{5, 7, 10}, claves)
+}
+
+
